@@ -1,1 +1,1 @@
-# data-collector
+# Sensor Collector
