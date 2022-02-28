@@ -1,0 +1,30 @@
+{
+    "data": [
+        {
+            "timestamp": "2022-02-02 12:47:35",
+            "UTC_offset": "1",
+            "longitude": "56.41234",
+            "latitude": "16.41234",
+            "sensors":{        
+                "temperature": "12.23",
+                "temperature_unit": "C",
+                "ph": "5.47",
+                "water_conductivity": "712",
+                "water_conductivity_unit": "ppm"
+            }
+    },  
+    {
+        "timestamp": "2022-02-01 18:03:57",
+        "UTC_offset": "1",
+        "longitude": "56.41234",
+        "latitude": "16.41234",
+        "sensors":{        
+            "temperature": "7.23",
+            "temperature_unit": "C",
+            "ph": "7.36",
+            "water_conductivity": "72",
+            "water_conductivity_unit": "ppm"
+        }
+    }  
+    ]
+  }

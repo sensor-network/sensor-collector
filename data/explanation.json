@@ -1,0 +1,17 @@
+{
+    "data": [
+      {
+        "timestamp": "TIMESTAMP",
+        "UTC_offset": "INT(1)",
+        "longitude": "FLOAT(7,5)",
+        "latitude": "FLOAT(6,4)",
+        "sensors":{
+            "temperature": "FLOAT(4,2)",
+            "temperature_unit": "C",
+            "ph": "FLOAT(4,2)",
+            "water_conductivity": "INT(4)",
+            "water_conductivity_unit": "ppm"
+        }
+    }
+    ]
+  }
