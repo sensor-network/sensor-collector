@@ -1,15 +1,30 @@
+#include <OneWire.h>
+#include <DallasTemperature.h>
+
 #include <ArduinoJson.h>
 #define SensorPin A0          // the pH meter Analog output is connected with the Arduino’s Analog
+
+// Data wire is plugged into digital pin 2 on the Arduino
+#define ONE_WIRE_BUS 2
+
+// Setup a oneWire instance to communicate with any OneWire device
+OneWire oneWire(ONE_WIRE_BUS);
+
+// Pass oneWire reference to DallasTemperature library
+DallasTemperature sensors(&oneWire);
+
+void setup(void)
+{
+  sensors.begin();    // Start up the library
+  Serial.begin(9600);
+  pinMode(13,OUTPUT);  
+  Serial.begin(9600);  
+  //Serial.println("Ph");    //Test the serial monitor
+}
 float b;
 int buf[10],temp;
 int increment = 0;
-void setup()
-{
-  pinMode(13,OUTPUT);  
-  Serial.begin(9600);  
-  Serial.println("Ph");    //Test the serial monitor
-  
-}
+
 
 float gather()
 {
@@ -42,28 +57,34 @@ float get_ph(){
     phValue=3.5*phValue;  //convert the millivolt into pH value
     return phValue;
 }
-void loop()
-{
-   
-  if (Serial.read()== 'r'){
+
+void loop(void)
+{ 
+ sensors.requestTemperatures();
+
+ if (Serial.read()== 'r'){
       float phValue = get_ph();
+      Serial.print("Temperature: ");
+      Serial.print(sensors.getTempCByIndex(0));
+      Serial.print(" C,");
       Serial.print(phValue,2);
       Serial.println(" ");
       digitalWrite(13, HIGH);       
       //delay(800);            //output interval with 60 seconds
       digitalWrite(13, LOW);
     }
-  if (millis() >= 10000*increment)
+  if (millis() >= 100*increment)
   {
     float phValue = get_ph();
+    Serial.print("Temperature: ");
+    Serial.print(sensors.getTempCByIndex(0));
     Serial.print(phValue,2);
     Serial.println(" ");
     digitalWrite(13, HIGH);       
     //delay(800);            //output interval with 60 seconds
     digitalWrite(13, LOW);
     increment++;
-    }
-  
-   
- 
+  // Send the command to get temperatures
+  delay(500);
+  }
 }
