@@ -21,4 +21,4 @@ TODO: Explain how unit- or integreation tests can be executed.
 TODO: Explain how to run the project (client, server etc.).
 
 ## License
-Source Code: MIT License
+Source Code: [MIT](#https://github.com/sensor-network/sensor-collector/blob/main/license.txt) License
