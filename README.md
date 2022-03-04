@@ -10,7 +10,8 @@ The purpose of this project is to build a succesful sensor-network that will col
 
 ### Build
 
-TODO: Explain how the whole project can be build.
+**Prerequisites**
+* [Arduino IDE 1.8.19](https://www.arduino.cc/en/software) or later
 
 ### Test
 
