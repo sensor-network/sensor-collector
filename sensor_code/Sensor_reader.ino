@@ -1,7 +1,8 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
-
 #include <ArduinoJson.h>
+#include <TimeLib.h>
+#include <HttpClient.h>
 #define SensorPin A0          // the pH meter Analog output is connected with the Arduino’s Analog
 
 // Data wire is plugged into digital pin 2 on the Arduino
@@ -21,10 +22,11 @@ void setup(void)
   Serial.begin(9600);  
   //Serial.println("Ph");    //Test the serial monitor
 }
+
+
 float b;
 int buf[10],temp;
 int increment = 0;
-
 
 float gather()
 {
@@ -51,6 +53,9 @@ float gather()
     avgValue+=buf[i];
   return avgValue; 
 }
+
+
+
 float get_ph(){
     float val = gather();
     float phValue=(float)val*5.0/1024/6; //convert the analog into millivolt
@@ -62,22 +67,30 @@ void loop(void)
 { 
  sensors.requestTemperatures();
 
- if (Serial.read()== 'r'){
+ if (millis() >= 100*increment){
       float phValue = get_ph();
-      Serial.print("Temperature: ");
-      Serial.print(sensors.getTempCByIndex(0));
-      Serial.print(" C,");
-      Serial.print(phValue,2);
+      DynamicJsonDocument doc(1024);
+      doc["data"]["Timestamp"]= ""; 
+      doc["data"]["UTC_offset"]="";
+      doc["data"]["longitude"]="";
+      doc["data"]["latitude"]="";
+      doc["sensors"]["Temperature"] = sensors.getTempCByIndex(0);
+      doc["sensors"]["Temperature_unit"]="C";
+      doc["sensors"]["ph"] = round(phValue*100.0)/100.0; 
+      doc["sensors"]["water_conductivity"]="";
+      doc["sensors"]["water_conductivity_unit"]="ppm";
+      serializeJson(doc, Serial);
       Serial.println(" ");
       digitalWrite(13, HIGH);       
       //delay(800);            //output interval with 60 seconds
       digitalWrite(13, LOW);
-    }
-  if (millis() >= 100*increment)
+  }  
+ if (Serial.read()== 'r')
   {
+    
     float phValue = get_ph();
-    Serial.print("Temperature: ");
     Serial.print(sensors.getTempCByIndex(0));
+    Serial.print(" , ");
     Serial.print(phValue,2);
     Serial.println(" ");
     digitalWrite(13, HIGH);       
