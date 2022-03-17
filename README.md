@@ -4,7 +4,7 @@
 The purpose of this project is to build a succesful sensor-network that will collect, transform and transmit water-related data to an API. 
 
 ## Architecture Overview
-![image](https://user-images.githubusercontent.com/82162221/156672537-ded3d339-d4bb-4098-a0f7-880f0522d4fc.png)
+![image](https://github.com/Hemofrags/pictures/blob/main/99ece35621b2518303bc02f82dc98561.png)
 
 ## How to Use
 
