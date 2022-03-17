@@ -12,6 +12,10 @@ The purpose of this project is to build a succesful sensor-network that will col
 
 **Prerequisites**
 * [Arduino IDE 1.8.19](https://www.arduino.cc/en/software) or later
+* MASUNN Ds18B20 temperature sensor
+* Beitian BN-220 dubble GPS
+* KEYESTUDIO Analog TDS sensor
+* Garsent Digital PH sensor
 
 ### Test
 
