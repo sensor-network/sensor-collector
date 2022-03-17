@@ -30,7 +30,6 @@ void setup(void)
   Serial.begin(9600);
   sensors.begin();    // Start up the library
   pinMode(TdsSensorPin, INPUT);
-  WiFi.begin(ssid, pass);
 
 }
 
@@ -144,5 +143,4 @@ void loop(void)
 
   }
 
-}
 }
