@@ -24,9 +24,9 @@ TODO: Explain how unit- or integreation tests can be executed.
 
 ### Run
 
-Connect the senors to the arduino board as in the figure below:
-![image](https://github.com/Hemofrags/pictures/blob/main/sensor.png)
+Connect the senors to the arduino board as in the [figure](https://github.com/sensor-network/sensor-collector/blob/main/Diagrams/sensor_circuit.png)
 
+Download the [code](https://github.com/sensor-network/sensor-collector/blob/main/sensor_code/Sensor_reader.ino) and insert it to the Arduino IDE
 
 ## License
 Source Code: [MIT](https://github.com/sensor-network/sensor-collector/blob/main/license.txt) License
