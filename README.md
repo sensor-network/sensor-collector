@@ -24,26 +24,24 @@ TODO: Explain how unit- or integreation tests can be executed.
 
 ### Run
 
-1- Connect the senors to the arduino board as in the [figure](https://github.com/sensor-network/sensor-collector/blob/main/Diagrams/sensor_circuit.png)
+1) Connect the senors to the arduino board as in the [figure](https://github.com/sensor-network/sensor-collector/blob/main/Diagrams/sensor_circuit.png)
 
-2- Download the [code](https://github.com/sensor-network/sensor-collector/blob/main/sensor_code/Sensor_reader.zip) and extract it. (The arduino code file must remain in the main file "Sensor_reader")
+2) Open `src/Sensor_reader/Sensor_reader.ino` using Arduino IDE.
 
-3- Open the file using Arduino IDE.
+3) Navigate to Tools -> Manage libraries.
 
-4- Navigate to Tools -> Manage libraries.
-
-5- Copy and paste each of the libraries bellow in the search bar to download it:
+4) Copy and paste each of the libraries bellow in the search bar to download it:
    * Onewire
    * DallasTemperature
    * ArduinoJson
 
-6- Change the Arduino's analog pins to match the connected pins for both PH and TDS sensors.
-```
-#define SensorPin A0          // the pH meter Analog output is connected with the Arduino’s Analog
-#define TdsSensorPin A1       // the tds meter Analog output is connected with the Arduino’s Analog
-```
+5) Change the Arduino's analog pins to match the connected pins for both PH and TDS sensors.
+   ```
+   #define SensorPin A0          // the pH meter Analog output is connected with the Arduino’s Analog
+   #define TdsSensorPin A1       // the tds meter Analog output is connected with the Arduino’s Analog
+   ```
 
-7- Run the code (The code will wait 15 seconds before giving any output)
+6) Run the code (The code will wait 15 seconds before giving any output)
 
 ## License
 Source Code: [MIT](https://github.com/sensor-network/sensor-collector/blob/main/license.txt) License
