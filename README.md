@@ -26,7 +26,7 @@ TODO: Explain how unit- or integreation tests can be executed.
 
 1- Connect the senors to the arduino board as in the [figure](https://github.com/sensor-network/sensor-collector/blob/main/Diagrams/sensor_circuit.png)
 
-2- Download the [code](https://github.com/sensor-network/sensor-collector/blob/main/sensor_code/Sensor_reader.zip) and extract it. (The arduino code file must remain in the main fail "Sensor_reader")
+2- Download the [code](https://github.com/sensor-network/sensor-collector/blob/main/sensor_code/Sensor_reader.zip) and extract it. (The arduino code file must remain in the main file "Sensor_reader")
 
 3- Open the file using Arduino IDE.
 
@@ -43,7 +43,7 @@ TODO: Explain how unit- or integreation tests can be executed.
 #define TdsSensorPin A1       // the tds meter Analog output is connected with the Arduino’s Analog
 ```
 
-7- Run the code
+7- Run the code (The code will wait 15 seconds before giving any output)
 
 ## License
 Source Code: [MIT](https://github.com/sensor-network/sensor-collector/blob/main/license.txt) License
