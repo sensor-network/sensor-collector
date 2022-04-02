@@ -3,8 +3,8 @@
 #include <ArduinoHttpClient.h>
 #include <SPI.h>
 #include <WiFiNINA.h>
-#include <ArduinoJson.h>
-#include <string>
+#include <TinyGPSPlus.h>
+#include <SoftwareSerial.h>
 #define SensorPin A0          // the pH meter Analog output is connected with the Arduino’s Analog
 #define TdsSensorPin A1
 #define VREF 5.0 // analog reference voltage(Volt) of the ADC
@@ -12,10 +12,24 @@
 // Data wire is plugged into digital pin 2 on the Arduino
 #define ONE_WIRE_BUS 2
 
-char ssid[] = "";  //wifi ssid
-char pass[] = "";  //wifi password
+char ssid[] = "TN_24GHz_EF95EF";  //wifi ssid
+char pass[] = "WFTAXPJL3V";  //wifi password
 const char serverName[] = "webhook.site";  // server name
 int port = 80;
+
+/*
+   This sample code demonstrates the normal use of a TinyGPSPlus (TinyGPSPlus) object.
+   It requires the use of SoftwareSerial, and assumes that you have a
+   4800-baud serial GPS device hooked up on pins 4(rx) and 3(tx).
+*/
+static const int RXPin = 4, TXPin = 3;
+static const uint32_t GPSBaud = 9600;
+
+// The TinyGPSPlus object
+TinyGPSPlus gps;
+
+// The serial connection to the GPS device
+SoftwareSerial ss(RXPin, TXPin);
 
 WiFiClient wifi;
 HttpClient client = HttpClient(wifi, serverName, port);
@@ -36,9 +50,11 @@ float averageVoltage = 0, tdsValue = 0, temperature = 25, phValue= 0.0;
 void setup(void)
 {
   Serial.begin(9600);
+  ss.begin(GPSBaud);
   sensors.begin();    // Start up the library
   pinMode(TdsSensorPin, INPUT);
   WiFi.begin(ssid, pass);
+  
 
 }
 
@@ -78,17 +94,30 @@ int getMedianNum(int bArray[], int iFilterLen)
   return bTemp;
 }
 
-void SendRequest(){
 
+void SendRequest(){
+    
     static unsigned long posting = millis();
     if(millis() - posting > 10000U){
       posting = millis();
       float phvalueedited = round(phValue * 100.0) / 100.0;
     float temperatureedited = round((temperature) * 100.0) / 100.0;
     String contentType = "application/x-www-form-urlencoded";
-    String httpRequestData = "{'data':{'Timestamp':'','UTC_offset':'','longitude':'','latitude':'','sensors':{'Temperature':" + String(temperatureedited, 0) + ",'Temperature_unit':'C','ph':" + phvalueedited + ",'water_conductivity':" + tdsValue + ",'water_conductivity_unit':ppm}}" ;
+    
+    TinyGPSTime t = gps.time;
+    char sz[32];
+    sprintf(sz, "%02d:%02d:%02d ", t.hour()+2, t.minute(), t.second());
+    
+    TinyGPSDate d = gps.date;
+    char cz[32];
+    sprintf(cz, "%02d-%02d-%02d ", d.year() ,d.month(), d.day());
+
+    float latitude = gps.location.lat();
+    float longitude = gps.location.lng();
+    
+    String httpRequestData = "{'data':{'Timestamp':'"+String(cz)+String(sz)+"','UTC_offset':'2','longitude':'"+String(longitude, 6)+"','latitude':'"+String(latitude, 6)+"','sensors':{'Temperature':" + String(temperatureedited, 0) + ",'Temperature_unit':'C','ph':" + phvalueedited + ",'water_conductivity':" + tdsValue + ",'water_conductivity_unit':ppm}}" ;
     String postData = httpRequestData;
-    client.post("/23c97cd2-4e4b-4b65-9146-a2e3044537d3", contentType, postData);
+    client.post("/775d811a-997b-4d77-bb77-835c20b8845d", contentType, postData);
     int statusCode = client.responseStatusCode();
   String response = client.responseBody();
     Serial.println(httpRequestData);
@@ -96,6 +125,7 @@ void SendRequest(){
   Serial.println(statusCode);
   Serial.print("Response: ");
   Serial.println(response);
+  smartDelay(0);
   }
 }
 
@@ -174,11 +204,66 @@ void PHSensor(){
 
 void loop(void)
 {
+  static const double LONDON_LAT = 51.508131, LONDON_LON = -0.128002;
   SensorBootup();
   TDSSensor();
   PHSensor();
   SendRequest();   
+  smartDelay(1000);
   }
+
+static void smartDelay(unsigned long ms)
+{
+  unsigned long start = millis();
+  do 
+  {
+    while (ss.available())
+      gps.encode(ss.read());
+  } while (millis() - start < ms);
+}
+
+static void printFloat(float val, bool valid, int len, int prec)
+{
+  if (!valid)
+  {
+    while (len-- > 1)
+      Serial.print('*');
+    Serial.print(' ');
+  }
+  else
+  {
+    Serial.print(val, prec);
+    int vi = abs((int)val);
+    int flen = prec + (val < 0.0 ? 2 : 1); // . and -
+    flen += vi >= 1000 ? 4 : vi >= 100 ? 3 : vi >= 10 ? 2 : 1;
+    for (int i=flen; i<len; ++i)
+      Serial.print(' ');
+  }
+  smartDelay(0);
+}
+
+static void printInt(unsigned long val, bool valid, int len)
+{
+  char sz[32] = "*****************";
+  if (valid)
+    sprintf(sz, "%ld", val);
+  sz[len] = 0;
+  for (int i=strlen(sz); i<len; ++i)
+    sz[i] = ' ';
+  if (len > 0) 
+    sz[len-1] = ' ';
+  Serial.print(sz);
+  smartDelay(0);
+}
+
+
+static void printStr(const char *str, int len)
+{
+  int slen = strlen(str);
+  for (int i=0; i<len; ++i)
+    Serial.print(i<slen ? str[i] : ' ');
+  smartDelay(0);
+}
 
   //if (Serial.read()== 'r')
   // {
