@@ -5,12 +5,15 @@
 #include <WiFiNINA.h>
 #include <TinyGPSPlus.h>
 #include <SoftwareSerial.h>
+#include <SD.h>
 #define SensorPin A0          // the pH meter Analog output is connected with the Arduino’s Analog
 #define TdsSensorPin A1
 #define VREF 5.0 // analog reference voltage(Volt) of the ADC
 #define SCOUNT 30 // sum of sample point
 // Data wire is plugged into digital pin 2 on the Arduino
 #define ONE_WIRE_BUS 2
+
+File myFile;
 
 char ssid[] = "TN_24GHz_EF95EF";  //wifi ssid
 char pass[] = "WFTAXPJL3V";  //wifi password
@@ -44,7 +47,7 @@ DallasTemperature sensors(&oneWire);
 int analogBuffer[SCOUNT]; // store the analog value in the array, read from ADC
 int analogBufferTemp[SCOUNT];
 int analogBufferIndex = 0, copyIndex = 0;
-float averageVoltage = 0, tdsValue = 0, temperature = 25, phValue= 0.0;
+float averageVoltage = 0, tdsValue = 0, temperature = 25, phValue = 0.0;
 
 
 void setup(void)
@@ -54,7 +57,11 @@ void setup(void)
   sensors.begin();    // Start up the library
   pinMode(TdsSensorPin, INPUT);
   WiFi.begin(ssid, pass);
-  
+  Serial.print("Initializing SD card...");
+  if (!SD.begin(10)) {
+    Serial.println("initialization failed!");
+    while (1);
+  }
 
 }
 
@@ -95,52 +102,95 @@ int getMedianNum(int bArray[], int iFilterLen)
 }
 
 
-void SendRequest(){
-    
-    static unsigned long posting = millis();
-    if(millis() - posting > 10000U){
-      posting = millis();
-      float phvalueedited = round(phValue * 100.0) / 100.0;
+void SendRequest() {
+
+  static unsigned long posting = millis();
+  if (millis() - posting > 10000U) {
+    posting = millis();
+    float phvalueedited = round(phValue * 100.0) / 100.0;
     float temperatureedited = round((temperature) * 100.0) / 100.0;
     String contentType = "application/x-www-form-urlencoded";
-    
+
     TinyGPSTime t = gps.time;
     char sz[32];
-    sprintf(sz, "%02d:%02d:%02d ", t.hour()+2, t.minute(), t.second());
-    
+    sprintf(sz, "%02d:%02d:%02d ", t.hour() + 2, t.minute(), t.second());
+
     TinyGPSDate d = gps.date;
     char cz[32];
-    sprintf(cz, "%02d-%02d-%02d ", d.year() ,d.month(), d.day());
+    sprintf(cz, "%02d-%02d-%02d ", d.year() , d.month(), d.day());
 
     float latitude = gps.location.lat();
     float longitude = gps.location.lng();
-    
-    String httpRequestData = "{'data':{'Timestamp':'"+String(cz)+String(sz)+"','UTC_offset':'2','longitude':'"+String(longitude, 6)+"','latitude':'"+String(latitude, 6)+"','sensors':{'Temperature':" + String(temperatureedited, 0) + ",'Temperature_unit':'C','ph':" + phvalueedited + ",'water_conductivity':" + tdsValue + ",'water_conductivity_unit':ppm}}" ;
-    String postData = httpRequestData;
-    client.post("/775d811a-997b-4d77-bb77-835c20b8845d", contentType, postData);
-    int statusCode = client.responseStatusCode();
-  String response = client.responseBody();
-    Serial.println(httpRequestData);
-    Serial.print("Status code: ");
-  Serial.println(statusCode);
-  Serial.print("Response: ");
-  Serial.println(response);
-  smartDelay(0);
+
+    String httpRequestData = "{'data':{'Timestamp':'" + String(cz) + String(sz) + "','UTC_offset':'2','longitude':'" + String(longitude, 6) + "','latitude':'" + String(latitude, 6) + "','sensors':{'Temperature':" + String(temperatureedited, 0) + ",'Temperature_unit':'C','ph':" + phvalueedited + ",'water_conductivity':" + tdsValue + ",'water_conductivity_unit':ppm}}" ;
+    if (WiFi.status() == WL_CONNECTED)
+    { 
+      myFile = SD.open("test.txt");
+      if (myFile)
+      {
+        while (myFile.available()) {
+          String postData= myFile.readStringUntil('\n');
+          Serial.println(postData);
+          client.post("/775d811a-997b-4d77-bb77-835c20b8845d", contentType, postData);
+          int statusCode = client.responseStatusCode();
+          String response = client.responseBody();
+          Serial.println(httpRequestData);
+          Serial.print("Status code: ");
+          Serial.println(statusCode);
+          Serial.print("Response: ");
+          Serial.println(response);
+          delay(2000);
+        }
+
+
+        myFile.close();
+        SD.remove("test.txt");
+      }
+
+      String postData = httpRequestData;
+      client.post("/775d811a-997b-4d77-bb77-835c20b8845d", contentType, postData);
+      int statusCode = client.responseStatusCode();
+      String response = client.responseBody();
+      Serial.println(httpRequestData);
+      Serial.print("Status code: ");
+      Serial.println(statusCode);
+      Serial.print("Response: ");
+      Serial.println(response);
+    }
+    if (WiFi.status() != WL_CONNECTED)
+    { delay(10000);
+    Serial.println("Wait 10 sec ya habibi");
+
+      if (myFile)
+      { myFile.println(httpRequestData);
+        Serial.println("The file is already open and data is writing");
+      }
+      else
+      { myFile = SD.open("test.txt", FILE_WRITE);
+        myFile.println(httpRequestData);
+        Serial.println("Opening file, a7la shbab");
+      }
+      myFile.close();
+      Serial.println("mr7baaa");
+      delay(12344);
+    }
+
+    smartDelay(0);
   }
 }
 
-void SensorBootup(){
-    static unsigned long sensorResponsetimepoint = millis();
+void SensorBootup() {
+  static unsigned long sensorResponsetimepoint = millis();
   if ( millis() - sensorResponsetimepoint < 15000U) {
     Serial.println("Starting up takes 15 seconds");
     delay(15000U);
-    }
   }
+}
 
 
-void TDSSensor(){
-  
-    sensors.requestTemperatures();
+void TDSSensor() {
+
+  sensors.requestTemperatures();
   static unsigned long analogSampleTimepoint = millis();
 
   if (millis() - analogSampleTimepoint > 40U) //every 40 milliseconds,read the analog value from the ADC
@@ -165,10 +215,10 @@ void TDSSensor(){
     float compensationVolatge = averageVoltage / compensationCoefficient; //temperature compensation
     tdsValue = (133.42 * compensationVolatge * compensationVolatge * compensationVolatge - 255.86 * compensationVolatge * compensationVolatge + 857.39 * compensationVolatge) * 0.5; //convert voltage value to tds value
   }
-  
- }
 
-void PHSensor(){
+}
+
+void PHSensor() {
   static unsigned long phcounter = 0;
   static unsigned long phSenReadTimepoint = millis();
   if (millis() - phSenReadTimepoint > 100U) {
@@ -198,24 +248,35 @@ void PHSensor(){
 
 
     phValue = get_ph(avgValue);
-  
+
   }
 }
 
 void loop(void)
 {
-  static const double LONDON_LAT = 51.508131, LONDON_LON = -0.128002;
-  SensorBootup();
-  TDSSensor();
-  PHSensor();
-  SendRequest();   
-  smartDelay(1000);
+  if (WiFi.status() != WL_CONNECTED)
+  {
+    SensorBootup();
+    TDSSensor();
+    PHSensor();
+    SendRequest();
+    smartDelay(1000);
   }
+
+  if (WiFi.status() == WL_CONNECTED)
+  {
+    SensorBootup();
+    TDSSensor();
+    PHSensor();
+    SendRequest();
+    smartDelay(1000);
+  }
+}
 
 static void smartDelay(unsigned long ms)
 {
   unsigned long start = millis();
-  do 
+  do
   {
     while (ss.available())
       gps.encode(ss.read());
@@ -236,7 +297,7 @@ static void printFloat(float val, bool valid, int len, int prec)
     int vi = abs((int)val);
     int flen = prec + (val < 0.0 ? 2 : 1); // . and -
     flen += vi >= 1000 ? 4 : vi >= 100 ? 3 : vi >= 10 ? 2 : 1;
-    for (int i=flen; i<len; ++i)
+    for (int i = flen; i < len; ++i)
       Serial.print(' ');
   }
   smartDelay(0);
@@ -248,10 +309,10 @@ static void printInt(unsigned long val, bool valid, int len)
   if (valid)
     sprintf(sz, "%ld", val);
   sz[len] = 0;
-  for (int i=strlen(sz); i<len; ++i)
+  for (int i = strlen(sz); i < len; ++i)
     sz[i] = ' ';
-  if (len > 0) 
-    sz[len-1] = ' ';
+  if (len > 0)
+    sz[len - 1] = ' ';
   Serial.print(sz);
   smartDelay(0);
 }
@@ -260,32 +321,32 @@ static void printInt(unsigned long val, bool valid, int len)
 static void printStr(const char *str, int len)
 {
   int slen = strlen(str);
-  for (int i=0; i<len; ++i)
-    Serial.print(i<slen ? str[i] : ' ');
+  for (int i = 0; i < len; ++i)
+    Serial.print(i < slen ? str[i] : ' ');
   smartDelay(0);
 }
 
-  //if (Serial.read()== 'r')
-  // {
+//if (Serial.read()== 'r')
+// {
 
-  //float phValue = get_ph();
-  //Serial.print(sensors.getTempCByIndex(0));
-  //Serial.print(" , ");
-  //Serial.print(phValue,2);
-  //Serial.println(" ");
-  //digitalWrite(13, HIGH);
-  //delay(800);            //output interval with 60 seconds
-  //digitalWrite(13, LOW);
-  // increment++;
-  // Send the command to get temperatures
-  //delay(500);
-  // }
+//float phValue = get_ph();
+//Serial.print(sensors.getTempCByIndex(0));
+//Serial.print(" , ");
+//Serial.print(phValue,2);
+//Serial.println(" ");
+//digitalWrite(13, HIGH);
+//delay(800);            //output interval with 60 seconds
+//digitalWrite(13, LOW);
+// increment++;
+// Send the command to get temperatures
+//delay(500);
+// }
 
-  //if(WiFi.status()== WL_CONNECTED){   //Check WiFi connection status
+//if(WiFi.status()== WL_CONNECTED){   //Check WiFi connection status
 
-  // EasyHTTP http(ssid, password);
+// EasyHTTP http(ssid, password);
 
-  // String response = http.post("/test");
-  // Serial.println(response);
+// String response = http.post("/test");
+// Serial.println(response);
 
-  // delay(3000);
+// delay(3000);
