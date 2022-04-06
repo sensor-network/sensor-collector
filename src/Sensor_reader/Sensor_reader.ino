@@ -159,7 +159,7 @@ void SendRequest() {
     }
     if (WiFi.status() != WL_CONNECTED)
     { delay(10000);
-    Serial.println("Wait 10 sec ya habibi");
+    Serial.println("Wait 10 sec");
 
       if (myFile)
       { myFile.println(httpRequestData);
@@ -168,10 +168,9 @@ void SendRequest() {
       else
       { myFile = SD.open("test.txt", FILE_WRITE);
         myFile.println(httpRequestData);
-        Serial.println("Opening file, a7la shbab");
+        Serial.println("Opening fileb");
       }
       myFile.close();
-      Serial.println("mr7baaa");
       delay(12344);
     }
 
@@ -252,6 +251,17 @@ void PHSensor() {
   }
 }
 
+static void smartDelay(unsigned long ms)
+{
+  unsigned long start = millis();
+  do
+  {
+    while (ss.available())
+      gps.encode(ss.read());
+  } while (millis() - start < ms);
+}
+
+
 void loop(void)
 {
   if (WiFi.status() != WL_CONNECTED)
@@ -273,58 +283,8 @@ void loop(void)
   }
 }
 
-static void smartDelay(unsigned long ms)
-{
-  unsigned long start = millis();
-  do
-  {
-    while (ss.available())
-      gps.encode(ss.read());
-  } while (millis() - start < ms);
-}
-
-static void printFloat(float val, bool valid, int len, int prec)
-{
-  if (!valid)
-  {
-    while (len-- > 1)
-      Serial.print('*');
-    Serial.print(' ');
-  }
-  else
-  {
-    Serial.print(val, prec);
-    int vi = abs((int)val);
-    int flen = prec + (val < 0.0 ? 2 : 1); // . and -
-    flen += vi >= 1000 ? 4 : vi >= 100 ? 3 : vi >= 10 ? 2 : 1;
-    for (int i = flen; i < len; ++i)
-      Serial.print(' ');
-  }
-  smartDelay(0);
-}
-
-static void printInt(unsigned long val, bool valid, int len)
-{
-  char sz[32] = "*****************";
-  if (valid)
-    sprintf(sz, "%ld", val);
-  sz[len] = 0;
-  for (int i = strlen(sz); i < len; ++i)
-    sz[i] = ' ';
-  if (len > 0)
-    sz[len - 1] = ' ';
-  Serial.print(sz);
-  smartDelay(0);
-}
 
 
-static void printStr(const char *str, int len)
-{
-  int slen = strlen(str);
-  for (int i = 0; i < len; ++i)
-    Serial.print(i < slen ? str[i] : ' ');
-  smartDelay(0);
-}
 
 //if (Serial.read()== 'r')
 // {
