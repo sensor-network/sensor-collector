@@ -15,8 +15,8 @@
 
 File myFile;
 
-char ssid[] = "TN_24GHz_EF95EF";  //wifi ssid
-char pass[] = "WFTAXPJL3V";  //wifi password
+char ssid[] = "Tele2_96e70a_2.4Ghz";  //wifi ssid
+char pass[] = "cdmkfmy3";  //wifi password
 const char serverName[] = "webhook.site";  // server name
 int port = 80;
 
@@ -30,6 +30,8 @@ static const uint32_t GPSBaud = 9600;
 
 // The TinyGPSPlus object
 TinyGPSPlus gps;
+TinyGPSTime t = gps.time;
+TinyGPSDate d = gps.date;
 
 // The serial connection to the GPS device
 SoftwareSerial ss(RXPin, TXPin);
@@ -111,27 +113,26 @@ void SendRequest() {
     float temperatureedited = round((temperature) * 100.0) / 100.0;
     String contentType = "application/x-www-form-urlencoded";
 
-    TinyGPSTime t = gps.time;
+    // Time format
     char sz[32];
     sprintf(sz, "%02d:%02d:%02d ", t.hour() + 2, t.minute(), t.second());
 
-    TinyGPSDate d = gps.date;
+    // Date format
     char cz[32];
     sprintf(cz, "%02d-%02d-%02d ", d.year() , d.month(), d.day());
 
     float latitude = gps.location.lat();
     float longitude = gps.location.lng();
 
-    String httpRequestData = "{'data':{'Timestamp':'" + String(cz) + String(sz) + "','UTC_offset':'2','longitude':'" + String(longitude, 6) + "','latitude':'" + String(latitude, 6) + "','sensors':{'Temperature':" + String(temperatureedited, 0) + ",'Temperature_unit':'C','ph':" + phvalueedited + ",'water_conductivity':" + tdsValue + ",'water_conductivity_unit':ppm}}" ;
+    String httpRequestData = "{'data':{'Timestamp':'" + String(cz) + "T" + String(sz) + "+02','longitude':'" + String(longitude, 6) + "','latitude':'" + String(latitude, 6) + "','sensors':[{'temperature':" + String(temperatureedited, 1) + ",'temperature_unit':'C','conductivity':" + tdsValue + ",'conductivity_unit':Spm,'ph':" + phvalueedited + "}]}" ;
     if (WiFi.status() == WL_CONNECTED)
-    { 
+    {
       myFile = SD.open("test.txt");
       if (myFile)
       {
         while (myFile.available()) {
-          String postData= myFile.readStringUntil('\n');
-          Serial.println(postData);
-          client.post("/775d811a-997b-4d77-bb77-835c20b8845d", contentType, postData);
+          String postData = myFile.readStringUntil('\n');
+          client.post("/a8bc8d60-0a03-4cf9-8f8a-f0ba570b4aa3", contentType, postData);
           int statusCode = client.responseStatusCode();
           String response = client.responseBody();
           Serial.println(httpRequestData);
@@ -154,12 +155,12 @@ void SendRequest() {
       Serial.println(httpRequestData);
       Serial.print("Status code: ");
       Serial.println(statusCode);
-      Serial.print("Response: ");
-      Serial.println(response);
+      //Serial.print("Response: ");
+      //Serial.println(response);
     }
     if (WiFi.status() != WL_CONNECTED)
-    { delay(10000);
-    Serial.println("Wait 10 sec");
+    {
+      Serial.println("Wireless not connected, saving data on SD-card");
 
       if (myFile)
       { myFile.println(httpRequestData);
@@ -168,10 +169,10 @@ void SendRequest() {
       else
       { myFile = SD.open("test.txt", FILE_WRITE);
         myFile.println(httpRequestData);
-        Serial.println("Opening fileb");
+        Serial.println("Opening file");
       }
       myFile.close();
-      delay(12344);
+      Serial.println("Closing file");
     }
 
     smartDelay(0);
@@ -264,22 +265,29 @@ static void smartDelay(unsigned long ms)
 
 void loop(void)
 {
-  if (WiFi.status() != WL_CONNECTED)
+  Serial.println("Checking if GPS location is valid....");
+  if (gps.location.isValid())
   {
-    SensorBootup();
-    TDSSensor();
-    PHSensor();
-    SendRequest();
-    smartDelay(1000);
-  }
+    Serial.println("GPS location is valid!, connecting to wireless...");
+    if (WiFi.status() != WL_CONNECTED)
+    {
+      Serial.println("Wireless not connected!");
+      SensorBootup();
+      TDSSensor();
+      PHSensor();
+      SendRequest();
+      smartDelay(1000);
+    }
 
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    SensorBootup();
-    TDSSensor();
-    PHSensor();
-    SendRequest();
-    smartDelay(1000);
+    if (WiFi.status() == WL_CONNECTED)
+    {
+      Serial.println("Wireless connected!");
+      SensorBootup();
+      TDSSensor();
+      PHSensor();
+      SendRequest();
+      smartDelay(1000);
+    }
   }
 }
 
