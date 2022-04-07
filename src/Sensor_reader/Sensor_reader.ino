@@ -20,7 +20,7 @@ TinyGPSPlus gps;
 
 char ssid[] = "Tele2_96e70a_2.4Ghz";  //wifi ssid
 char pass[] = "cdmkfmy3";  //wifi password
-const char serverName[] = "192.168.0.28:3000";  // server name
+const char serverName[] = "webhook.site";  // server name
 int port = 80;
 
 /*
@@ -58,12 +58,11 @@ void setup(void)
   sensors.begin();    // Start up the library
   pinMode(TdsSensorPin, INPUT);
   WiFi.begin(ssid, pass);
-  Serial.print("Initializing SD card...");
+  Serial.println("Initializing SD card...");
   if (!SD.begin(10)) {
     Serial.println("initialization failed!");
     while (1);
   }
-
 }
 
 float b;
@@ -110,7 +109,7 @@ void SendRequest() {
     posting = millis();
     float phvalueedited = round(phValue * 100.0) / 100.0;
     float temperatureedited = round((temperature) * 100.0) / 100.0;
-    String contentType = "application/json";
+    String contentType = "application/x-www-form-urlencoded";
 
     TinyGPSTime t = gps.time;
     TinyGPSDate d = gps.date;
@@ -126,15 +125,15 @@ void SendRequest() {
     float latitude = gps.location.lat();
     float longitude = gps.location.lng();
 
-    String httpRequestData = "{\"timestamp\":\"" + String(cz) + String(sz) + "\",\"longitude\":" + String(longitude, 6) + ",\"latitude\":" + String(latitude, 6) + ",\"sensors\":{\"temperature\":" + String(temperatureedited, 1) + ",\"temperature_unit\":\"C\",\"conductivity\":" + tdsValue + ",\"conductivity_unit\":\"Spm\",\"ph_level\":" + phvalueedited + "}}" ;
-    if (WiFi.status() == WL_CONNECTED)
+    String httpRequestData = "{\"timestamp\":\"" + String(cz) +"T"+ String(sz) +"+02"+"\",\"longitude\":" + String(longitude, 6) + ",\"latitude\":" + String(latitude, 6) + ",\"sensors\":{\"temperature\":" + String(temperatureedited, 1) + ",\"temperature_unit\":\"C\",\"conductivity\":" + tdsValue + ",\"conductivity_unit\":\"Spm\",\"ph_level\":" + phvalueedited + "}}" ;
+    if (WiFi.status() == WL_CONNECTED && latitude != 0 && longitude != 0 && phvalueedited !=0)
     {
-      myFile = SD.open("test.txt");
+      myFile = SD.open("measurments.txt");
       if (myFile)
       {
         while (myFile.available()) {
           String postData = myFile.readStringUntil('\n');
-          client.post("/api/v2/data?api_key=default", contentType, postData);
+          client.post("/bb10c047-1d67-4c98-bd00-a5c3009a3561", contentType, postData);
           int statusCode = client.responseStatusCode();
           String response = client.responseBody();
           Serial.println(httpRequestData);
@@ -142,16 +141,13 @@ void SendRequest() {
           Serial.println(statusCode);
           Serial.print("Response: ");
           Serial.println(response);
-          delay(2000);
         }
-
-
         myFile.close();
-        SD.remove("test.txt");
+        SD.remove("measurments.txt");
       }
 
       String postData = httpRequestData;
-      client.post("/api/v2/data?api_key=default", contentType, postData);
+      client.post("/bb10c047-1d67-4c98-bd00-a5c3009a3561", contentType, postData);
       int statusCode = client.responseStatusCode();
       String response = client.responseBody();
       Serial.println(httpRequestData);
@@ -160,7 +156,8 @@ void SendRequest() {
       Serial.print("Response: ");
       Serial.println(response);
     }
-    if (WiFi.status() != WL_CONNECTED)
+
+    else if (WiFi.status() != WL_CONNECTED && latitude != 0 && longitude != 0 && phvalueedited !=0)
     {
       Serial.println("Wireless not connected, saving data on SD-card");
 
@@ -177,6 +174,9 @@ void SendRequest() {
       Serial.println("Closing file");
     }
 
+    else
+    { Serial.println("Location is not valid");
+    }
     smartDelay(0);
   }
 }
@@ -267,12 +267,8 @@ static void smartDelay(unsigned long ms)
 
 void loop(void)
 {
-  //Serial.println("Checking if GPS location is valid....");
-  //if (gps.location.isValid())
-  //{
   if (WiFi.status() != WL_CONNECTED)
   {
-    Serial.println("Wireless not connected!");
     SensorBootup();
     TDSSensor();
     PHSensor();
@@ -288,33 +284,4 @@ void loop(void)
     SendRequest();
     smartDelay(1000);
   }
-  //}
 }
-
-
-
-
-//if (Serial.read()== 'r')
-// {
-
-//float phValue = get_ph();
-//Serial.print(sensors.getTempCByIndex(0));
-//Serial.print(" , ");
-//Serial.print(phValue,2);
-//Serial.println(" ");
-//digitalWrite(13, HIGH);
-//delay(800);            //output interval with 60 seconds
-//digitalWrite(13, LOW);
-// increment++;
-// Send the command to get temperatures
-//delay(500);
-// }
-
-//if(WiFi.status()== WL_CONNECTED){   //Check WiFi connection status
-
-// EasyHTTP http(ssid, password);
-
-// String response = http.post("/test");
-// Serial.println(response);
-
-// delay(3000);
