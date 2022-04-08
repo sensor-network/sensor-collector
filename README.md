@@ -17,6 +17,9 @@ The purpose of this project is to build a succesful sensor-network that will col
 * Beitian BN-220 dubble GPS
 * KEYESTUDIO Analog TDS sensor
 * Garsent Digital PH sensor
+* Micro SD TF Card Memory Shield Module
+* Powerbank
+* USB to mini USB type B
 
 ### Test
 
