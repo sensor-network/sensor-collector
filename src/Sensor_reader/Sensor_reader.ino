@@ -5,6 +5,7 @@
 #include <WiFiNINA.h>
 #include <TinyGPSPlus.h>
 #include <SoftwareSerial.h>
+#include <LiquidCrystal.h>
 #include <SD.h>
 #define SensorPin A0          // the pH meter Analog output is connected with the Arduino’s Analog
 #define TdsSensorPin A1
@@ -13,49 +14,48 @@
 // Data wire is plugged into digital pin 2 on the Arduino
 #define ONE_WIRE_BUS 2
 
+
 File myFile;
 
+const int rs = 12, en = 11, d4 = 6, d5 = 8, d6 = 5, d7 = 7;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 TinyGPSPlus gps;
 
-char ssid[] = "Tele2_96e70a_2.4Ghz";  //wifi ssid
-char pass[] = "cdmkfmy3";  //wifi password
-const char serverName[] = "webhook.site";  // server name
-int port = 80;
-
-/*
-   This sample code demonstrates the normal use of a TinyGPSPlus (TinyGPSPlus) object.
-   It requires the use of SoftwareSerial, and assumes that you have a
-   4800-baud serial GPS device hooked up on pins 4(rx) and 3(tx).
-*/
 static const int RXPin = 4, TXPin = 3;
 static const uint32_t GPSBaud = 9600;
 
+char ssid[] = "One";  //wifi ssid 
+char pass[] = "12341234";  //wifi password 
 
 // The serial connection to the GPS device
 SoftwareSerial ss(RXPin, TXPin);
 
 WiFiClient wifi;
-HttpClient client = HttpClient(wifi, serverName, port);
-
 int status = WL_IDLE_STATUS;
+
 // Setup a oneWire instance to communicate with any OneWire device
 OneWire oneWire(ONE_WIRE_BUS);
-
-// Pass oneWire reference to DallasTemperature library
 DallasTemperature sensors(&oneWire);
+// Pass oneWire reference to DallasTemperature library
+DallasTemperature temp_sensor(&oneWire);
 
-int analogBuffer[SCOUNT]; // store the analog value in the array, read from ADC
-int analogBufferTemp[SCOUNT];
-int analogBufferIndex = 0, copyIndex = 0;
-float averageVoltage = 0, tdsValue = 0, temperature = 25, phValue = 0.0;
 
+void SendRequest();
+float get_ph(float val);
+int getMedianNum(int bArray[], int iFilterLen);
+void TDSSensor();
+void PHSensor();
+static void smartDelay(unsigned long ms);
+void SensorBootup();
 
 void setup(void)
 {
   Serial.begin(9600);
+  lcd.begin(16, 2);
+  lcd.print("Setting up...");
   ss.begin(GPSBaud);
-  sensors.begin();    // Start up the library
+  temp_sensor.begin();    // Start up the library
   pinMode(TdsSensorPin, INPUT);
   WiFi.begin(ssid, pass);
   Serial.println("Initializing SD card...");
@@ -63,17 +63,50 @@ void setup(void)
     Serial.println("initialization failed!");
     while (1);
   }
+  SensorBootup();
+
 }
 
-float b;
-int buf[10], temp;
-int increment = 0;
 
 
-float get_ph(float val) {
-  float phValue = (float)val * 5.0 / 1024 / 6; //convert the analog into millivolt
-  phValue = 3.5 * phValue; //convert the millivolt into pH value
-  return phValue;
+
+
+struct TDS {
+  String unit;
+  float value;
+};
+
+struct Temperature {
+  String unit;
+  float value;
+};
+struct GPS {
+  float latitude;
+  float longitude;
+  String date_time;
+};
+struct Measurement {
+  Measurement(Temperature TEMPERATURE, GPS GPS, TDS TDS, float PH) {
+    this->pH = PH;
+    this->temperature = TEMPERATURE;
+    this->gps = GPS;
+    this->tds = TDS;
+  }
+  float pH;
+  Temperature temperature;
+  GPS gps;
+  TDS tds;
+};
+
+
+
+
+
+
+float convert_to_ph(float val) {
+  float ph_val_mili = (float)val * 5.0 / 1024; //convert the analog into millivolt
+  float ph_val_converted = 3.5 * ph_val_mili; //convert the millivolt into pH value
+  return ph_val_converted;
 }
 
 int getMedianNum(int bArray[], int iFilterLen)
@@ -102,83 +135,87 @@ int getMedianNum(int bArray[], int iFilterLen)
 }
 
 
-void SendRequest() {
+String get_date_and_time() {
+  TinyGPSDate d = gps.date;
+  TinyGPSTime t = gps.time;
 
-  static unsigned long posting = millis();
-  if (millis() - posting > 10000U) {
-    posting = millis();
-    float phvalueedited = round(phValue * 100.0) / 100.0;
-    float temperatureedited = round((temperature) * 100.0) / 100.0;
-    String contentType = "application/x-www-form-urlencoded";
+  // Date format
+  char date[32];
+  sprintf(date, "%02d-%02d-%02d", d.year() , d.month(), d.day());
 
-    TinyGPSTime t = gps.time;
-    TinyGPSDate d = gps.date;
+  // Time format
+  char time[32];
+  sprintf(time, "%02d:%02d:%02d", t.hour() + 2, t.minute(), t.second());
 
-    // Time format
-    char sz[32];
-    sprintf(sz, "%02d:%02d:%02d ", t.hour() + 2, t.minute(), t.second());
+  String date_time = String(date) + "T" + String(time) + "+02";
+  return date_time;
+}
 
-    // Date format
-    char cz[32];
-    sprintf(cz, "%02d-%02d-%02d ", d.year() , d.month(), d.day());
 
-    float latitude = gps.location.lat();
-    float longitude = gps.location.lng();
 
-    String httpRequestData = "{\"timestamp\":\"" + String(cz) +"T"+ String(sz) +"+02"+"\",\"longitude\":" + String(longitude, 6) + ",\"latitude\":" + String(latitude, 6) + ",\"sensors\":{\"temperature\":" + String(temperatureedited, 1) + ",\"temperature_unit\":\"C\",\"conductivity\":" + tdsValue + ",\"conductivity_unit\":\"Spm\",\"ph_level\":" + phvalueedited + "}}" ;
-    if (WiFi.status() == WL_CONNECTED && latitude != 0 && longitude != 0 && phvalueedited !=0)
+void SendRequest(String postData){
+  const char serverName[] = "sensornetwork.diptsrv003.bth.se";  // server name
+  HttpClient client = HttpClient(wifi, serverName, 80);
+  String contentType1 = "application/json";
+  String contentType2 = "Bearer default";
+  
+  client.beginRequest();
+  client.post("/api/v3/measurements");
+  client.sendHeader("Content-Type",contentType1);
+  client.sendHeader("Authorization",contentType2);
+  client.beginBody();
+  client.print(postData);
+  client.endRequest();
+        
+  Serial.println(postData);
+  Serial.println("Status code: " + client.responseStatusCode());
+  Serial.println("Response: " + client.responseBody());
+  }
+
+void DataHandler(struct Measurement local) {
+    static unsigned long posting = millis();
+    String httpRequestData = "{\"time\":\""+ local.gps.date_time +"\",\"position\":{\"long\":" + String(local.gps.longitude, 6) + ",\"lat\":" + String(local.gps.latitude, 6) + "},\"sensors\":[{\"id\":" + String(1) + ",\"value\":" + String(local.temperature.value, 1) + ",\"unit\":" + local.temperature.unit +"},{\"id\":" + String(2) + ",\"value\":" + local.tds.value + ",\"unit\":"+ local.tds.unit +"},{\"id\":" + String(3) + ",\"value\":" + String(local.pH, 1) + ",\"unit\":\"\"}]}" ;
+
+    if (WiFi.status() == WL_CONNECTED && local.pH !=0)
     {
-      myFile = SD.open("measurments.txt");
-      if (myFile)
-      {
+        myFile = SD.open("buffer.txt");
+        if (myFile)
+        {
         while (myFile.available()) {
-          String postData = myFile.readStringUntil('\n');
-          client.post("/bb10c047-1d67-4c98-bd00-a5c3009a3561", contentType, postData);
-          int statusCode = client.responseStatusCode();
-          String response = client.responseBody();
-          Serial.println(httpRequestData);
-          Serial.print("Status code: ");
-          Serial.println(statusCode);
-          Serial.print("Response: ");
-          Serial.println(response);
+            String postData = myFile.readStringUntil('\n');
+            SendRequest(postData);
         }
         myFile.close();
-        SD.remove("measurments.txt");
-      }
-
-      String postData = httpRequestData;
-      client.post("/bb10c047-1d67-4c98-bd00-a5c3009a3561", contentType, postData);
-      int statusCode = client.responseStatusCode();
-      String response = client.responseBody();
-      Serial.println(httpRequestData);
-      Serial.print("Status code: ");
-      Serial.println(statusCode);
-      Serial.print("Response: ");
-      Serial.println(response);
+        SD.remove("buffer.txt");
+        }
+        SendRequest(httpRequestData);
     }
 
-    else if (WiFi.status() != WL_CONNECTED && latitude != 0 && longitude != 0 && phvalueedited !=0)
+    if (WiFi.status() != WL_CONNECTED && local.pH !=0)
     {
-      Serial.println("Wireless not connected, saving data on SD-card");
+        Serial.println("Wireless not connected, saving data on SD-card");
 
-      if (myFile)
-      { myFile.println(httpRequestData);
+        if (myFile)
+        { myFile.println(httpRequestData);
         Serial.println("The file is already open and data is writing");
-      }
-      else
-      { myFile = SD.open("test.txt", FILE_WRITE);
+        }
+        else
+        { myFile = SD.open("buffer.txt", FILE_WRITE);
         myFile.println(httpRequestData);
         Serial.println("Opening file");
-      }
-      myFile.close();
-      Serial.println("Closing file");
-    }
-
-    else
-    { Serial.println("Location is not valid");
+        }
+        myFile.close();
+        Serial.println(F("Closing file"));
+        WiFi.begin(ssid, pass);
+   }
+    else{  
+      Serial.println("Location is not valid");
+      //Serial.println(local.gps.longitude, 6);
+      //Serial.println(local.gps.latitude, 6);
+      //Serial.println(local.pH);
+    
     }
     smartDelay(0);
-  }
 }
 
 void SensorBootup() {
@@ -189,71 +226,72 @@ void SensorBootup() {
   }
 }
 
-
-void TDSSensor() {
-
-  sensors.requestTemperatures();
-  static unsigned long analogSampleTimepoint = millis();
-
-  if (millis() - analogSampleTimepoint > 40U) //every 40 milliseconds,read the analog value from the ADC
-  {
-    analogSampleTimepoint = millis();
-    analogBuffer[analogBufferIndex] = analogRead(TdsSensorPin); //read the analog value and store into the buffer
-    analogBufferIndex++;
-
-    if (analogBufferIndex == SCOUNT)
-      analogBufferIndex = 0;
+float getTDS(float temperatureC) {
+  unsigned short int analogBufferIndex = 0;
+  int analogBuffer[SCOUNT]; // store the analog value in the array, read from ADC
+  int analogBufferTemp[SCOUNT];
+  int copyIndex = 0;
+  while (analogBufferIndex < 20) {
+    analogBuffer[analogBufferIndex++] = analogRead(TdsSensorPin);
+    smartDelay(40);
   }
-  static unsigned long printTimepoint = millis();
-
-  if (millis() - printTimepoint > 800U)
-  {
-    temperature = sensors.getTempCByIndex(0);
-    printTimepoint = millis();
-    for (copyIndex = 0; copyIndex < SCOUNT; copyIndex++)
-      analogBufferTemp[copyIndex] = analogBuffer[copyIndex];
-    averageVoltage = getMedianNum(analogBufferTemp, SCOUNT) * (float)VREF / 1024.0; // read the analog value more stable by the median filtering algorithm, and convert to voltage value
-    float compensationCoefficient = 1.0 + 0.02 * (temperature - 25.0); //temperature compensation formula: fFinalResult(25^C) = fFinalResult(current)/(1.0+0.02*(fTP-25.0));
-    float compensationVolatge = averageVoltage / compensationCoefficient; //temperature compensation
-    tdsValue = (133.42 * compensationVolatge * compensationVolatge * compensationVolatge - 255.86 * compensationVolatge * compensationVolatge + 857.39 * compensationVolatge) * 0.5; //convert voltage value to tds value
+  for (copyIndex = 0; copyIndex < SCOUNT; copyIndex++) {
+    analogBufferTemp[copyIndex] = analogBuffer[copyIndex];
   }
-
+  float averageVoltage = getMedianNum(analogBufferTemp, SCOUNT) * (float)VREF / 1024.0; // read the analog value more stable by the median filtering algorithm, and convert to voltage value
+  float compensationCoefficient = 1.0 + 0.02 * (temperatureC - 25.0); //temperature compensation formula: fFinalResult(25^C) = fFinalResult(current)/(1.0+0.02*(fTP-25.0));
+  float compensationVoltage = averageVoltage / compensationCoefficient; //temperature compensation
+  float tdsValue = (133.42 * compensationVoltage * compensationVoltage * compensationVoltage - 255.86 * compensationVoltage * compensationVoltage + 857.39 * compensationVoltage) * 0.5; //convert voltage value to tds value
+  return tdsValue;
 }
 
-void PHSensor() {
-  static unsigned long phcounter = 0;
-  static unsigned long phSenReadTimepoint = millis();
-  if (millis() - phSenReadTimepoint > 100U) {
-    buf[phcounter] = analogRead(SensorPin);
-    phcounter ++;
-    phSenReadTimepoint = millis();
+float get_average(float list[]) {
+  float average = 0;
+  for (int i = 0; i < 6 ; i++) {
+    average += list[i];
   }
+  return average / 6;
+}
 
-  if (phcounter == 10) {
-    phcounter = 0;
-    for (int i = 0; i < 9; i++) //sort the analog from small to large
+float bubble_sort_and_shorten(float list[]) {
+  
+  for (unsigned short int i = 0; i < 9; i++) //sort the analog from small to large
+  {
+    int temp = 0;
+    for (unsigned short int j = 0; j < 9-i; j++)
     {
-      for (int j = i + 1; j < 10; j++)
+      
+      if (list[j] > list[j+1])
       {
-        if (buf[i] > buf[j])
-        {
-          temp = buf[i];
-          buf[i] = buf[j];
-          buf[j] = temp;
-        }
+        temp = list[j];
+        list[j] = list[j+1];
+        list[j+1] = temp;
+
+        temp = 1;
       }
+      
     }
-
-    unsigned long int avgValue = 0;
-    for (int i = 2; i < 8; i++)               //take the average value of 6 center sample
-      avgValue += buf[i];
-
-
-    phValue = get_ph(avgValue);
-
+    if (temp == 0)
+      break;
   }
+  for (int i = 2; i < 8; i++) {
+    list[i-2] = list[i];
+  }
+  return get_average(list);
 }
 
+float get_ph() {
+  float buf[10];
+  short unsigned int phcounter = 0;
+  float phValue = 0;
+  while (phcounter < 10) {
+    buf[phcounter++] = analogRead(SensorPin);
+    delay(100);
+  }
+  float d;
+  d = bubble_sort_and_shorten(buf);
+  return convert_to_ph(d);
+}
 static void smartDelay(unsigned long ms)
 {
   unsigned long start = millis();
@@ -264,24 +302,47 @@ static void smartDelay(unsigned long ms)
   } while (millis() - start < ms);
 }
 
+float getTempinC() {
+  temp_sensor.requestTemperatures();
+  return temp_sensor.getTempCByIndex(0);
+}
 
+bool CheckStatus() {
+  lcd.clear();
+  if (WiFi.status() != WL_CONNECTED)
+  { lcd.print("Wifi not connected");
+    delay(800);
+    lcd.setCursor(0, 1);
+  }
+  Serial.println(sensors.getDeviceCount());
+  if (sensors.getDeviceCount() != 1)
+  { lcd.print("Temperature sensor not connected");
+    delay(800);
+    lcd.setCursor(0, 1);
+  }
+  
+
+
+}
 void loop(void)
 {
-  if (WiFi.status() != WL_CONNECTED)
-  {
-    SensorBootup();
-    TDSSensor();
-    PHSensor();
-    SendRequest();
-    smartDelay(1000);
-  }
+  //CheckStatus();
+  struct Temperature temperature;
+  temperature.value = getTempinC();
+  temperature.unit = "C";
 
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    SensorBootup();
-    TDSSensor();
-    PHSensor();
-    SendRequest();
-    smartDelay(1000);
-  }
+  float ph_struct = get_ph();
+
+  struct TDS tds;
+  tds.value = getTDS(temperature.value);
+  tds.unit = "ppm";
+
+  struct GPS gps_struct;
+  gps_struct.latitude = gps.location.lat();
+  gps_struct.longitude = gps.location.lng();
+  gps_struct.date_time = get_date_and_time();
+
+  Measurement measurement(temperature, gps_struct, tds, ph_struct);
+  DataHandler(measurement);
+  smartDelay(1000);
 }
