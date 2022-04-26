@@ -19,17 +19,13 @@
 /*
 Try to remove as many prints for debugging as you can, these take quite alot memory. Also check if #include <SPI.h> is used otherwise remove it. 
 I dont think we can make any more global variables local but if it is possible it helps alot with the memory. Having functions where something is repeated also reduces memory quite alot.
+I suggest that we should make bubblesort work with both mediannum and the existing use of it
 */
-
-
-
-const byte rs = 12, en = 11, d4 = 6, d5 = 8, d6 = 5, d7 = 7;
-LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 TinyGPSPlus gps;
 
-const char ssid[] = "One";  //wifi ssid 
-const char pass[] = "12341234";  //wifi passwordcdmkfmy3
+const char ssid[] PROGMEM = "One";  //wifi ssid 
+const char pass[] PROGMEM = "12341234";  //wifi passwordcdmkfmy3
 
 
 /*
@@ -62,7 +58,7 @@ struct TDS {
 };
 
 struct Temperature {
-  String unit;
+  char unit;
   float value;
 };
 struct GPS {
@@ -89,7 +85,6 @@ void setup(void)
 {
   static const uint32_t GPSBaud = 9600;
   Serial.begin(9600);
-  lcd.begin(16, 2);
   //lcd.print("Setting up...");
   ss.begin(GPSBaud);
   temp_sensor.begin();    // Start up the library
@@ -115,6 +110,9 @@ int getMedianNum(int bArray[], int iFilterLen)
   int bTab[iFilterLen];
   for (byte i = 0; i < iFilterLen; i++)
     bTab[i] = bArray[i];
+      /*
+   should call to bubblesort
+   */
   unsigned short int i, j, bTemp;
   for (j = 0; j < iFilterLen - 1; j++)
   {
@@ -155,6 +153,7 @@ String get_date_and_time() {
 
 
 void SendRequest(String postData){
+  
   String contentType1 = "application/json";
   String contentType2 = "Bearer default";
   const short int port = 80;
@@ -254,7 +253,9 @@ float get_average(float list[]) {
   }
   return average / 6;
 }
-
+/*
+ bubble sort and shorten should problaby be two different functions
+ */
 float bubble_sort_and_shorten(float list[]) {
   int temp;
   for (unsigned short int i = 0; i < 9; i++) //sort the analog from small to large
@@ -302,6 +303,10 @@ float getTempinC() {
 }
 
 bool CheckStatus() {
+  
+  const byte rs = 12, en = 11, d4 = 6, d5 = 8, d6 = 5, d7 = 7;
+  LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+  
   DallasTemperature sensors(&oneWire);
   lcd.clear();
   if (WiFi.status() != WL_CONNECTED)
@@ -324,7 +329,7 @@ void loop(void)
   //CheckStatus();
   struct Temperature temperature;
   temperature.value = getTempinC();
-  temperature.unit = "C";
+  temperature.unit = 'C';
 
   float ph_struct = get_ph();
 
