@@ -165,11 +165,11 @@ void SendRequest(String postData){
   Serial.println(postData);
   Serial.println("Response: " + client.responseBody());
   }
-  
+  String station_id = '1'
 void DataHandler(struct Measurement local) {
     File myFile;
     static unsigned long posting = millis();
-    String httpRequestData = "{\"time\":\""+ local.gps.date_time +"\",\"position\":{\"long\":" + String(local.gps.longitude, 6) + ",\"lat\":" + String(local.gps.latitude, 6) + "},\"sensors\":[{\"id\":" + String(1) + ",\"value\":" + String(local.temperature.value, 1) + ",\"unit\":\"C\"},{\"id\":" + String(2) + ",\"value\":" + local.tds.value + ",\"unit\":\"ppm\"},{\"id\":" + String(3) + ",\"value\":" + String(local.pH, 1) + ",\"unit\":\"\"}]}";
+    String httpRequestData = "{\"station\":\""+station_id+"\",\"time\":\""+ local.gps.date_time +"\",\"position\":{\"long\":" + String(local.gps.longitude, 6) + ",\"lat\":" + String(local.gps.latitude, 6) + "},\"sensors\":[{\"id\":" + String(1) + ",\"value\":" + String(local.temperature.value, 1) + ",\"unit\":\"C\"},{\"id\":" + String(2) + ",\"value\":" + local.tds.value + ",\"unit\":\"ppm\"},{\"id\":" + String(3) + ",\"value\":" + String(local.pH, 1) + ",\"unit\":\"\"}]}";
     Serial.println(local.pH);
     if (WiFi.status() == WL_CONNECTED && local.pH !=0)
     {
