@@ -26,8 +26,8 @@ TinyGPSPlus gps;
 static const int RXPin = 0, TXPin = 1;                  //edited by karim RX from 4 to 0 and TX from 3 to 1
 
 
-const char ssid[] = "AndroidAP";  //wifi ssid 
-const char pass[] = "kasra123";  //wifi password 
+const char ssid[] = "kim";  //wifi ssid 
+const char pass[] = "12345678";  //wifi password 
 
 // The serial connection to the GPS device
 SoftwareSerial ss(RXPin, TXPin);
@@ -139,13 +139,10 @@ void SendRequest(String postData){
 /*
   String contentType = "accept: application/json";
   String postData = "name=Alice&age=12";
-
   client.post("/", contentType, postData);
-
   // read the status code and body of the response
   int statusCode = client.responseStatusCode();
   String response = client.responseBody();
-
   Serial.print("Status code: ");
   Serial.println(statusCode);
   Serial.print("Response: ");
@@ -165,11 +162,11 @@ void SendRequest(String postData){
   Serial.println(postData);
   Serial.println("Response: " + client.responseBody());
   }
-  String station_id = '1'
+  int station_id = 2;
 void DataHandler(struct Measurement local) {
     File myFile;
     static unsigned long posting = millis();
-    String httpRequestData = "{\"station\":\""+station_id+"\",\"time\":\""+ local.gps.date_time +"\",\"position\":{\"long\":" + String(local.gps.longitude, 6) + ",\"lat\":" + String(local.gps.latitude, 6) + "},\"sensors\":[{\"id\":" + String(1) + ",\"value\":" + String(local.temperature.value, 1) + ",\"unit\":\"C\"},{\"id\":" + String(2) + ",\"value\":" + local.tds.value + ",\"unit\":\"ppm\"},{\"id\":" + String(3) + ",\"value\":" + String(local.pH, 1) + ",\"unit\":\"\"}]}";
+    String httpRequestData = "{\"stationId\":"+String(station_id)+",\"time\":\""+ local.gps.date_time +"\",\"position\":{\"long\":" + String(local.gps.longitude, 6) + ",\"lat\":" + String(local.gps.latitude, 6) + "},\"sensors\":[{\"id\":" + String(2) + ",\"value\":" + String(local.temperature.value, 1) + ",\"unit\":\"C\"},{\"id\":" + String(7) + ",\"value\":" + local.tds.value + ",\"unit\":\"ppm\"},{\"id\":" + String(11) + ",\"value\":" + String(local.pH, 1) + ",\"unit\":\"\"}]}";
     Serial.println(local.pH);
     if (WiFi.status() == WL_CONNECTED && local.pH !=0)
     {
