@@ -27,7 +27,7 @@ TODO: Explain how unit- or integreation tests can be executed.
 
 ### Run
 
-1) Connect the senors to the arduino board as in the [figure](https://github.com/sensor-network/sensor-collector/blob/main/Diagrams/sensor_circuit_connection.png)
+1) Connect the senors to the arduino board as in the [figure](https://github.com/sensor-network/sensor-collector/blob/main/Diagrams/sensor_circuit_scheme.png)
 
 2) Open `src/Sensor_reader/Sensor_reader.ino` using Arduino IDE.
 
